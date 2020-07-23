@@ -9,9 +9,9 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
-import android.widget.EditText;
 import android.widget.Toast;
 
+import com.google.android.material.textfield.TextInputEditText;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
@@ -35,7 +35,7 @@ public class SetTrackerActivity extends AppCompatActivity {
 
     private static final String TAG = "SetTrackerActivity";
 
-    EditText tracker_id_text;
+    TextInputEditText tracker_id_text;
 
     FirebaseDatabase database;
 
@@ -51,19 +51,7 @@ public class SetTrackerActivity extends AppCompatActivity {
 
         progressDialog = new ProgressDialog(this);
 
-        tracker_id_text = findViewById(R.id.tracker_id_text);
         database = FirebaseDatabase.getInstance();
-    }
-
-    public void setTracker(View view) {
-        final String trId = tracker_id_text.getText().toString();
-
-        if (trId.isEmpty()){
-            Toast.makeText(this, "Enter trucker id", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        
-        setTracker(trId);
     }
 
     private void setTracker(final String trId) {
@@ -134,7 +122,7 @@ public class SetTrackerActivity extends AppCompatActivity {
         });
     }
 
-    public void openScan(View view) {
+    void openScan(){
         Dexter.withContext(this)
                 .withPermissions(Collections.singletonList(
                         Manifest.permission.CAMERA
@@ -150,6 +138,10 @@ public class SetTrackerActivity extends AppCompatActivity {
 
                     }
                 }).check();
+
+    }
+    public void openScan(View view) {
+        openScan();
     }
 
     @Override

@@ -11,6 +11,7 @@ import android.os.IBinder;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -51,6 +52,8 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
 
     public static boolean active = false;
 
+    TextView tracking;
+
     private final ServiceConnection serviceConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
@@ -78,6 +81,7 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
         setContentView(R.layout.activity_main);
         active = true;
 
+        tracking = findViewById(R.id.tracking);
         locationUpdates = findViewById(R.id.location_updates);
         removeUpdates = findViewById(R.id.remove_updates);
 
@@ -146,9 +150,11 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
 
     private void setButtonsState(boolean aBoolean) {
         if (aBoolean){
+            tracking.setVisibility(View.VISIBLE);
             locationUpdates.setEnabled(false);
             removeUpdates.setEnabled(true);
         }else {
+            tracking.setVisibility(View.INVISIBLE);
             locationUpdates.setEnabled(true);
             removeUpdates.setEnabled(false);
         }
