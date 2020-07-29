@@ -1,8 +1,5 @@
 package javatar.com.trackout.activities;
 
-import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
-
 import android.Manifest;
 import android.app.ProgressDialog;
 import android.content.Intent;
@@ -11,8 +8,11 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Toast;
 
-import com.google.android.material.textfield.TextInputEditText;
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
+
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
@@ -26,7 +26,6 @@ import com.karumi.dexter.listener.multi.MultiplePermissionsListener;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 
 import javatar.com.trackout.R;
 import javatar.com.trackout.data.SharedPreferencesClient;
@@ -34,8 +33,6 @@ import javatar.com.trackout.data.SharedPreferencesClient;
 public class SetTrackerActivity extends AppCompatActivity {
 
     private static final String TAG = "SetTrackerActivity";
-
-    TextInputEditText tracker_id_text;
 
     FirebaseDatabase database;
 
@@ -97,9 +94,13 @@ public class SetTrackerActivity extends AppCompatActivity {
     }
 
     void setMyId(String id){
-        final String myId = Objects.requireNonNull(FirebaseAuth.getInstance().getCurrentUser()).getUid();
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        assert user != null;
+        final String myId = user.getUid();
+        final String email = user.getEmail();
         final DatabaseReference myRef = database.getReference("trackers").child(id).child("outs").child(myId);
         myRef.child("id").setValue(myId);
+        myRef.child("email").setValue(email);
         myRef.child("location_updates").setValue(false);
 
         myRef.addValueEventListener(new ValueEventListener() {
@@ -140,6 +141,7 @@ public class SetTrackerActivity extends AppCompatActivity {
                 }).check();
 
     }
+
     public void openScan(View view) {
         openScan();
     }

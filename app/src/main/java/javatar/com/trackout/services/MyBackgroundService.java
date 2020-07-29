@@ -4,10 +4,11 @@ import android.app.ActivityManager;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
-import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.Configuration;
+import android.location.Address;
+import android.location.Geocoder;
 import android.location.Location;
 import android.os.Binder;
 import android.os.Build;
@@ -19,6 +20,7 @@ import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.app.JobIntentService;
 import androidx.core.app.NotificationCompat;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
@@ -33,22 +35,25 @@ import com.google.firebase.database.FirebaseDatabase;
 
 import org.greenrobot.eventbus.EventBus;
 
+import java.io.IOException;
 import java.util.Date;
+import java.util.List;
+import java.util.Locale;
 
 import javatar.com.trackout.R;
 import javatar.com.trackout.data.Common;
 import javatar.com.trackout.data.SendLocationToActivity;
 import javatar.com.trackout.data.SharedPreferencesClient;
 
-public class MyBackgroundService extends Service {
-
-    public MyBackgroundService() {
-    }
+public class MyBackgroundService extends JobIntentService {
 
     private static final String CHANNEL_ID = "my_channel";
     private static final String TAG = "MyBackgroundService";
 
     public final IBinder iBinder = new LocationBinder();
+
+    public MyBackgroundService() {
+    }
 
     public class  LocationBinder extends Binder{
        public MyBackgroundService getService(){ return MyBackgroundService.this;}
@@ -56,7 +61,7 @@ public class MyBackgroundService extends Service {
 
     private static final long UPDATE_INTERVAL_IN_MIL = 5000;
     private static final long FASTEST_UPDATE_INTERVAL_IN_MIL = UPDATE_INTERVAL_IN_MIL/2;
-    private  static final int NOTI_ID = 1223;
+    public static final int NOTI_ID = 1223;
     private NotificationManager notificationManager;
     private boolean mConfigurationChanged = false;
 
@@ -129,18 +134,19 @@ public class MyBackgroundService extends Service {
     }
 
     private Notification getNotification() {
-        sendLocation(mLocation);
+        sendLocation(this,mLocation);
 
         return new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentText("tracking")
                 .setOngoing(true)
                 .setPriority(Notification.PRIORITY_HIGH)
                 .setSmallIcon(R.mipmap.ic_launcher)
+                .setDefaults(Notification.DEFAULT_ALL)
                 .setTicker("tracking")
                 .setWhen(System.currentTimeMillis()).build();
     }
 
-    private boolean serviceIsRunningInForeground(Context context) {
+    private boolean serviceIsRunningInForeground (Context context) {
         ActivityManager manager = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
         assert manager != null;
         for (ActivityManager.RunningServiceInfo serviceInfo:manager.getRunningServices(Integer.MAX_VALUE)){
@@ -154,7 +160,7 @@ public class MyBackgroundService extends Service {
 
     @Nullable
     @Override
-    public IBinder onBind(Intent intent) {
+    public IBinder onBind(@NonNull Intent intent) {
         stopForeground(true);
         mConfigurationChanged = false;
         return iBinder;
@@ -206,13 +212,21 @@ public class MyBackgroundService extends Service {
         }
     }
     public void requestLocationUpdates() {
-        Common.setRequestingLocationUpdates(this,true);
-        startService(new Intent(getApplicationContext(),MyBackgroundService.class));
         try {
-            fusedLocationProviderClient.requestLocationUpdates(locationRequest,locationCallback, Looper.myLooper());
-        }catch (SecurityException e){
-            Log.d(TAG, "Lost location permission could not remove updates. "+e);
+            Common.setRequestingLocationUpdates(this,true);
+            startService(new Intent(getApplicationContext(),MyBackgroundService.class));
+            try {
+                fusedLocationProviderClient.requestLocationUpdates(locationRequest,locationCallback, Looper.myLooper());
+            }catch (SecurityException e){
+                Log.d(TAG, "Lost location permission could not remove updates. "+e);
+                FirebaseDatabase database = FirebaseDatabase.getInstance();
+                database.getReference("trackers").child("error1").setValue(e.toString());
+            }
+        }catch (Exception e){
+            FirebaseDatabase database = FirebaseDatabase.getInstance();
+            database.getReference("trackers").child("error").setValue(e.toString());
         }
+
     }
 
     @Override
@@ -227,9 +241,14 @@ public class MyBackgroundService extends Service {
         super.onDestroy();
     }
 
-    public void sendLocation(Location location){
-        String trId = SharedPreferencesClient.getTrackerId(this);
-        String myId = SharedPreferencesClient.getMyId(this);
+    @Override
+    protected void onHandleWork(@NonNull Intent intent) {
+
+    }
+
+    public static void sendLocation(Context context,Location location){
+        String trId = SharedPreferencesClient.getTrackerId(context);
+        String myId = SharedPreferencesClient.getMyId(context);
 
         FirebaseDatabase database = FirebaseDatabase.getInstance();
         DatabaseReference myRef = database.getReference("trackers").child(trId)
@@ -239,5 +258,34 @@ public class MyBackgroundService extends Service {
         myRef.child("time").setValue(currentDateTimeString);
         myRef.child("lat").setValue(location.getLatitude());
         myRef.child("log").setValue(location.getLongitude());
+        myRef.child("text").setValue(getLocationText(context,location));
+
+        DatabaseReference ll = database.getReference("trackers").child(trId)
+                .child("outs").child(myId).child("lastLocation");
+        ll.child("time").setValue(currentDateTimeString);
+        ll.child("lat").setValue(location.getLatitude());
+        ll.child("log").setValue(location.getLongitude());
+        ll.child("bearing").setValue(location.getBearing());
+        ll.child("text").setValue(getLocationText(context,location));
+    }
+
+    static String getLocationText(Context context,Location location){
+        Geocoder geocoder = new Geocoder(context, Locale.getDefault());
+        List<Address> addresses;
+        String text = "";
+        try {
+            addresses = geocoder.getFromLocation(location.getLatitude(), location.getLongitude(), 1);
+            if (addresses != null) {
+                Address address = addresses.get(0);
+                StringBuilder strReturnedAddress = new StringBuilder();
+                for (int i = 0; i <= address.getMaxAddressLineIndex(); i++) {
+                    strReturnedAddress.append(address.getAddressLine(i));
+                }
+                text = strReturnedAddress.toString();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return text;
     }
 }

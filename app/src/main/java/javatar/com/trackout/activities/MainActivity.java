@@ -36,11 +36,11 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
+import javatar.com.trackout.R;
 import javatar.com.trackout.data.Common;
 import javatar.com.trackout.data.SendLocationToActivity;
 import javatar.com.trackout.services.MyBackgroundService;
 import javatar.com.trackout.services.MyFireBaseMessagingService;
-import javatar.com.trackout.R;
 
 public class MainActivity extends AppCompatActivity implements SharedPreferences.OnSharedPreferenceChangeListener {
 
@@ -185,7 +185,7 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
         if (Common.requestingLocationUpdates(MainActivity.this)){
             String text = Common.getLocationText(location.getLocation());
             Toast.makeText(mService, text, Toast.LENGTH_SHORT).show();
-            mService.sendLocation(location.getLocation());
+            MyBackgroundService.sendLocation(this,location.getLocation());
         }
     }
 
